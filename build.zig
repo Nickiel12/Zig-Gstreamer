@@ -36,7 +36,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const gst_dev_path = b.graph.env_map.get("GST_DEV_PATH");
+    // These environment vars are set with the `nix develop` command
+    const gst_dev_path = b.graph.env_map.get("GST_DEV_PATH");  
     const glib_dev_path = b.graph.env_map.get("GLIB_DEV_PATH");
     const glib_path = b.graph.env_map.get("GLIB_PATH");
 
@@ -53,16 +54,15 @@ pub fn build(b: *std.Build) void {
     }
 
     exe.linkSystemLibrary("c");
-    exe.addIncludePath(.{ .cwd_relative = "src" });
-    exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include/gstreamer-1.0", .{gst_dev_path.?}) });
-    exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include/gstreamer-1.0/gst", .{gst_dev_path.?}) });
+    exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include/gstreamer-1.0", .{gst_dev_path.?}) });     // not sure why both are needed, but 
+    exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include/gstreamer-1.0/gst", .{gst_dev_path.?}) }); // it won't compile without them
     exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include/glib-2.0", .{glib_dev_path.?}) });
     exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/lib/glib-2.0/include", .{glib_path.?}) });
 
-    // exe.addCSourceFile(.{ .file = b.path("src/gstreamer.c") });
-    // exe.addCSourceFile(.{ .file = b.path("src/glib_def.c") });
 
     exe.linkSystemLibrary("gstreamer-1.0");
+    exe.linkSystemLibrary("glib-2.0");
+    exe.linkSystemLibrary("gobject-2.0");
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -91,29 +91,4 @@ pub fn build(b: *std.Build) void {
     // This will evaluate the `run` step rather than the default, which is "install".
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
-
-    // Creates a step for unit testing. This only builds the test executable
-    // but does not run it.
-    const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-
-    const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
-    test_step.dependOn(&run_exe_unit_tests.step);
 }
